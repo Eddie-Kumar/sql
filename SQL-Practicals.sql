@@ -473,7 +473,7 @@ exec sp_help '##Emp2'
 use Employee
 /* Create a Cursor that inserts values into the new column [Commision_Amount] as created above in the "##Emp2" table: 
 	1) For employees with non-zero/not-null values in the "Commission%" column, insert: [Salary]*[Commission%].
-	2) For employees who work in "Tech" department, insert: £10 (flat/fixed value).
+	2) For employees who work in "Tech" department, insert: Â£10 (flat/fixed value).
 	3) For other employees (who are neither in "Tech" department nor have any "Commission%"), insert: 0.
 */
 DECLARE @eid INT
@@ -569,5 +569,26 @@ BEGIN
 END
 --Call:
 EXEC CalcBonus
+
+
+---------------------------
+
+--Date handling examples:
+PRINT getdate()  -- today's date.
+
+--Manipulating date by creating new date object:
+DECLARE @t DATE, @dt DATE = getdate()
+SET @t = DATEFROMPARTS(2000, 12, 29)
+--SET @t = DATEFROMPARTS(DATEPART(YEAR, getdate()), 12, 29)
+
+--Formatting of date:
+print format(@t, 'dd-MM-yyyy')
+print format(@t, 'dd-MMM-yyyy')
+print format(@t, 'dd-MMMM-yyyy')
+print datediff(YEAR, @t, @dt)
+
+print (DATEPART(Month, getdate()))
+
+PRINT MONTH(getdate())
 
 
