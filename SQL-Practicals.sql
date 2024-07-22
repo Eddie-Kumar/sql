@@ -3,13 +3,13 @@
 =============================================
 
 ---------------------------------------
---All rights reserved. GPL-GNU licenc
---No responsibility will be taken by the author for any issues that may be caused by any code in this fil
+--All rights reserved. GPL-GNU licence.
+--No responsibility will be taken by the author for any issues that may be caused by this code.
 -------------------------------------
 --TO BE EXECUTED IN SSMS (NOT ONLINE LAB-WEBSITES):
 
 --Check SQL Server details (name/version):
-print @@servername  --OR select SERVERPROPERTY('ServerName')		-- host-server & named-instance nam
+print @@servername  --OR select SERVERPROPERTY('ServerName')		-- host-server & named-instance name.
 print @@version
 print system_user
 
@@ -22,7 +22,7 @@ CREATE DATABASE [EmpDb]
 -------------------------------------
 
 --DB state:
-SELECT database_id, name, state_desc [DB_State], recovery_model_desc, user_access_desc, collation_name, compatibility_level FROM sys.databases WHERE name = 'Employee'
+SELECT database_id, name, state_desc [DB_State], recovery_model_desc, user_access_desc, collation_name, compatibility_level FROM sys.databases WHERE name = 'EmpDb'
 --Change Recovery Model:
 ALTER DATABASE [EmpDb] SET RECOVERY SIMPLE 
 GO
@@ -30,7 +30,7 @@ GO
 USE EmpDb
 GO
 
-print db_name()  --View database-name in us
+print db_name()  --View database-name in use.
 --------------------------------
 
 
@@ -39,7 +39,7 @@ print db_name()  --View database-name in us
 
 --Create emp table:
 create table emp (
-	eid	int 	 NOT NULL ,
+	eid	int 	 NOT NULL PRIMARY KEY,
 	ename	varchar(100)	,
 	jobtitle	varchar(100)	,
 	managerid	int	,
@@ -133,26 +133,44 @@ EXEC sp_help 'emp'
 EXEC sp_help 'dept'
 EXEC sp_help 'region'
 
--------------------------------------------------------
+------------------x------------------
 
---Print highest salary from the 'emp' table:
-SELECT top_salary = MAX(salary) FROM emp;
-SELECT  MAX(salary) AS 'top_salary' FROM emp;
-SELECT  MAX(salary) AS [top_salary] FROM emp;
-
-
---Print highest salary from the 'emp' table along with the 
---employee-names, job_titles and their department-names:
-select ename, jobtitle, d.deptname, salary
+--List all employee-names (ename), job_titles and their department-names (dept_name):
+select ename, jobtitle, e.did, d.deptname 
 from emp e
 	join dept d on e.did = d.did
---where salary = (select MAX(salary) from emp)
-where eid = (select eid from emp where salary = (select MAX(salary) from emp))
 
---68319
+
+--Print highest salary from the 'emp' table and create Column-header-Aliases in different ways:
+SELECT top_salary = MAX(salary) FROM emp;
+SELECT  MAX(salary) AS top_salary FROM emp;
+SELECT  MAX(salary) AS 'top salary' FROM emp;
+SELECT [top salary] = MAX(salary) FROM emp;
+
+
+--Print highest salary from the 'emp' table along with the following columsn:
+--employee-names, job_titles and their department-names:
+--Method-1:
+SELECT TOP 1 ename, salary FROM emp
+ORDER BY salary DESC
+--Method-2:
+SELECT TOP 1 ename, salary FROM emp
+WHERE salary = (select MAX(salary) from emp)
+--OR without TOP 1:
+select ename, jobtitle, d.deptname, salary from emp e
+	join dept d on e.did = d.did
+where eid = (select eid from emp where salary = (select MAX(salary) from emp))
+--Method-3:
+SELECT ename, jobtitle, salary FROM emp
+ORDER BY salary DESC
+OFFSET 0 ROW
+FETCH NEXT 1 ROW ONLY
+
 --Print employees' details drawing top 3 salaries:
 select TOP 3 * from emp
 ORDER BY salary DESC
+
+
 
 --Print 2nd hightest salary from the 'emp' table along with the employee-names, job_titles and their department-names:
 --Solve this in 5 different methods:
@@ -168,11 +186,6 @@ ORDER BY salary DESC
 OFFSET 1 ROW 
 FETCH NEXT 1 ROW ONLY
 
---List all employee-names (ename), job_titles and their department-names (dept_name):
-select ename, jobtitle, e.did, d.deptname 
-from emp e
-	join dept d on e.did = d.did
-
 --Method-3: using Derived-table or order by (table created "on-the-fly"):
 SELECT TOP 1 * FROM
 	(SELECT TOP 2 e.ename, e.jobtitle, e.salary FROM emp AS e
@@ -180,13 +193,13 @@ SELECT TOP 1 * FROM
 ORDER BY emp1.salary ASC
 
 --Method-4: using CTE (table created "on-the-fly"):
---Step-1: CTE (Common Table Expression):
-WITH emp1 AS
-	(SELECT TOP 2 ename, jobtitle, salary FROM emp
-	ORDER BY salary DESC)
---Step-2:
-SELECT TOP 1 * FROM emp1
-ORDER BY salary ASC
+	--Step-1: CTE (Common Table Expression):
+	WITH emp1 AS
+		(SELECT TOP 2 ename, jobtitle, salary FROM emp
+		ORDER BY salary DESC)
+	--Step-2:
+	SELECT TOP 1 * FROM emp1
+	ORDER BY salary ASC
 
 --Method-5: using "Derived Table and Row_Number() function":
 SELECT * FROM
@@ -199,9 +212,15 @@ from
 	(select * from emp) AS emp_output --must have a name/aliase.
 
 
---Create a store procedure that returns all employees details of those who work in 'Sales':
-GO
-CREATE PROCEDURE emp_sales
+
+
+
+
+
+--Create a simple store procedure that returns all employees details of those who work in 'Sales' department:
+--CREATE OR ALTER - work SS2014 onwards, for older version use DROP.
+--DROP IF EXISTS  - work SS2016 onwards.
+CREATE OR ALTER PROCEDURE emp_sales
 AS
 BEGIN
 	--select * from emp where did = 30  --using did / number
@@ -215,8 +234,7 @@ EXEC emp_sales
 GO
 
 
---Create a store procedure that returns employees based on given (dynamic) department number (did):
-GO
+--Create a store procedure that prints employee-details based on given (dynamic) department number (did):
 CREATE PROCEDURE emp_in_dept @did int
 AS
 select * from emp where did = @did
@@ -227,8 +245,18 @@ EXEC emp_in_dept 20
 GO
 
 
-select * from dept
-sp_help dept
+--Create a store procedure that prints employees details of specified DeptName (based on what name is passed in):  
+CREATE PROC sp_EmpForDeptName @dname Varchar(256)
+AS
+BEGIN
+	SELECT eid, ename, jobtitle, DeptName FROM emp
+	JOIN dept ON emp.did = dept.did
+	WHERE dept.dname = @dname
+END;
+--Call:
+EXEC sp_EmpForDeptid @dname='Sales'
+EXEC sp_EmpForDeptid @dname='Tech'
+
 
 --List all employees work with the 'Sales' department (including Sales Manager):
 --select * from emp where did = 30
@@ -239,12 +267,13 @@ where jobtitle LIKE 'Sale%'  --"ILike" allows the RegExp patters, (e.g.: '.\\S[a
 
 
 --Create a stored proc (called "AgeCalculatorInYears") that accepts your year of birth (YYYY i.e. 4 digit int), 
---year(getdate())
+--Procedure should return age in just years ("You are xx years old.")
+--Tip: GETDATE() returns today's date. You can use: year(getdate()) to get just the year part from a date/time value.
 GO
 DROP PROC AgeCalculatorInYears
-CREATE PROC AgeCalculatorInYears @y INT
+CREATE OR ALTER PROC AgeCalculatorInYears @y INT
 AS
-SELECT 'You are ' + CAST((YEAR(GETDATE())-@y) AS VARCHAR(4)) + ' year(s) old.'
+SELECT [Age in years] = 'You are ' + CAST((YEAR(GETDATE())-@y) AS VARCHAR(4)) + ' year(s) old.'
 --SELECT year(getdate()) - @y
 --Call:
 EXEC AgeCalculatorInYears 1979
@@ -252,11 +281,11 @@ EXEC AgeCalculatorInYears 1979
 
 
 --Write a stored proc (called "AgeCalculator") that accepts your date of birth, then returns your age with break-down 
+--Stored Proc should pricisely calculate & return the age in full: Days, Months and Years.
 --(e.g.: "Today you are x year(s), x month(s) and x days old.")
 --Optionally, add validation to ensure that the date of birth is passed in (as parameter), e.g., if DOB not supplied it asks for it.
 --Tip: ISO date format: 'yyyy-mm-dd'
 --Using: DATEADD, DATEDIFF, DATEPART and DATEFROMPARTS functions.
-
 DROP PROC AgeCalculator
 --DROP PROC IF EXISTS AgeCalculator --SS version 2016 onwards.
 
@@ -265,7 +294,12 @@ AS
 BEGIN
 	IF @dob IS NULL
 	BEGIN
-		PRINT 'Please provide your Date of birth (preferably in ISO format: YYYY-MM-DD)'
+		PRINT 'Please provide your date of birth (preferably in ISO format: YYYY-MM-DD)'
+		RETURN
+	END
+	IF isdate(TRY_CONVERT(datetime, @dob, 103)) <> 1 --British format dd/mm/yyyy
+	BEGIN
+		PRINT 'Invalid date format. Please provide your date of birth in ISO format: YYYY-MM-DD)'
 		RETURN
 	END
 	IF @dob > getdate()  --checks if @dob is in future
@@ -294,11 +328,36 @@ BEGIN
 END
 --Usage:
 EXEC AgeCalculator
-EXEC AgeCalculator '2023-03-07'
-
+EXEC AgeCalculator '2000-01-01'
+EXEC AgeCalculator '2021-07-22' --Today's date
+EXEC AgeCalculator '2037-03-07' --Future date to test.
+EXEC AgeCalculator '2035-01-01'  --future date - validation.
+EXEC AgeCalculator @dob = '2000/01/01'  --millennium.
+EXEC AgeCalculator @dob = '2022/12/25'  --last Christmas.
+EXEC AgeCalculator @dob = '0001/01/01'  --past (valid) date.
 ----------------------
 
---if the current season/month is a summer month (Apr-Aug), list Sales employees who work with European region
+
+
+
+
+--if the current season/month is a summer month (Apr-Aug), list ALL employees who work with European region
+--otherwise list employees from the Australian region:
+If MONTH(GETDATE()) >= 4 AND MONTH(GETDATE()) <= 8
+BEGIN
+	SELECT eid, ename, r.rid, r.RegionName, jobtitle, salary, did FROM emp e
+		JOIN region r ON e.rid = r.rid
+	WHERE RegionName = 'Europe';
+END
+Else
+BEGIN
+	SELECT eid, ename, r.rid, r.RegionName, jobtitle, salary, did FROM emp e
+		JOIN region r ON e.rid = r.rid
+	WHERE RegionName = 'Australias';
+END
+
+
+--if the current season/month is a summer month (Apr-Aug), list SALES employees who work with European region
 --otherwise list employees from the Australian region:
 If MONTH(GETDATE()) >= 4 AND MONTH(GETDATE()) <= 8
 BEGIN
@@ -318,6 +377,25 @@ BEGIN
 	WHERE RegionName = 'Australias'
 		AND jobtitle LIKE '%Sale%'
 END
+
+
+--UPDATE QUERY:
+--Update the emp table so that employees line-managed by 'John' receive an increment of 10 pounds.
+UPDATE e
+SET e.salary = e.salary + 10
+FROM emp AS e
+	LEFT OUTER JOIN emp Mgr
+ON mgr.eid = e.managerid
+WHERE mgr.ename = 'John'
+
+--Test:
+SELECT e.eid, e.ename, e.jobtitle, e.managerid, mgr.ename [mname], mgr.jobtitle, e.salary 
+FROM emp e
+	LEFT OUTER JOIN emp mgr
+ON mgr.eid = e.managerid
+WHERE mgr.ename = 'John'
+
+
 
 --Using If..Else:
 DECLARE @x INT
@@ -352,7 +430,7 @@ END
 
 
 --Write a stored proc that uses While loop to check whether or not the given number/int (passed in as a parameter) is a prime number.
--- % is a modulus operator, returns remainder. 12%10 = 2   9%3=0
+--TIP: '%' is a modulus operator in SQL, which returns remainder when you divide a number: 12%10 = 2   9%3=0
 CREATE PROC PrimeNumberCheck (@n INT)
 AS
 BEGIN
@@ -378,7 +456,68 @@ END
 EXEC PrimeNumberCheck @n = 12
 EXEC PrimeNumberCheck 5
 
+--Create a store procedure that determins if passed in INT is a prime number or not, you'll then use that  returned value
+--to print appropriate message (e.g.: "<n> is NOT a Prime number")
+--TIP: '%' is a modulus operator in SQL, which returns remainder when you divide a number: 12%10 = 2   9%3=0
+--TIP: use While loop to check whether or not the given number/int (passed in as a parameter) is a prime number.
+CREATE PROC PrimeNumberCheck (@n INT)
+AS
+BEGIN
+	DECLARE @i INT = @n / 2
+	DECLARE @isPrime BIT = 1
+	WHILE @i >= 2
+	BEGIN
+		IF @n % @i = 0
+		BEGIN 
+			SET @isPrime = 0
+			BREAK;
+		END
+		SET @i = @i - 1
+	END
+	RETURN @isPrime
+END
+--Usage:
+GO
+DECLARE @numToCheck INT = 5
+DECLARE @isPrime BIT = 1
+EXEC @isPrime = PrimeNumberCheck @n = @numToCheck
+IF @isPrime = 1
+		PRINT 'Yes, ' + cast(@numToCheck as varchar(40))  + ' is a Prime number.';
+ELSE
+		PRINT 'No, ' + cast(@numToCheck as varchar(40))  + ' is NOT a Prime number.';
+
+
+
+--Write a stored proc that checks whether or not the given number/int (passed in as a parameter) is a prime number.
+--And prints user friendly message (within stored procedure):
+--TIP: '%' is a modulus operator in SQL, which returns remainder when you divide a number: 12%10 = 2   9%3=0
+--TIP: use While loop to check whether or not the given number/int (passed in as a parameter) is a prime number.
+CREATE PROC PrimeNumberCheck (@n INT)
+AS
+BEGIN
+	DECLARE @i INT = @n/2
+	DECLARE @isPrime BIT = 1
+
+	WHILE @i >= 2
+	BEGIN
+		IF @n % @i = 0
+		BEGIN
+			SET @isPrime = 0
+			BREAK
+		END
+		SET @i = @i - 1
+	END
+	IF @isPrime = 1
+		PRINT 'Yes, ' + cast(@n as varchar(40))  + ' is a Prime number.'
+	ELSE
+		PRINT 'No, ' + cast(@n as varchar(40))  + ' is NOT a Prime number.'
+END
+--Usage: 
+EXEC PrimeNumberCheck @n = 12
+EXEC PrimeNumberCheck 5
 ----------------------
+
+
 
 --List all employees along with their line-manager names:
 --Using Self-Join:
@@ -398,6 +537,7 @@ from emp e
 */
 
 --Using CTE and SET operator (UNION/EXCEPT), list all emp names NOT managed by "Kylie" & "Bob":
+--Without CTE/SET:
 SELECT * FROM emp WHERE managerid NOT IN (68319, 66928)
 
 --Using CTE and SET operator:
@@ -407,7 +547,7 @@ EXCEPT
 SELECT * FROM cte
 
 
---Create a Simple Cursor to print all employees who work with Sales (not limited to the Sales department),
+--Create a Simple Cursor to print all employees who work with Sales team (not limited to the Sales department),
 -- display only 2 columns: Employee-Names and Department-Names.
 DECLARE @n VARCHAR(99)
 DECLARE @d VARCHAR(99)
@@ -429,7 +569,7 @@ DEALLOCATE cur_Emps_in_Sales
 ----------------
 
 --Write a simple Cursor to list all employees from the Sales department and 
---list their: names, jobtile, salary and commission.
+--list their: names, jobtile, salary and commission separated by a line "------------".
 DECLARE @name VARCHAR(99)
 DECLARE @team VARCHAR(99)
 DECLARE @salary VARCHAR(99)
@@ -461,21 +601,25 @@ DEALLOCATE EmpTeam
 --Create a copy of 'emp' table as a temporary table ("##Emp2") with an 
 --additinal column called "Commision_Amount" that should be populated with 
 --the same value as in "Commission" column.
+TIP: 
+--"SELECT..INTO" is one of the quickest ways to create a copy of a table using TSQL:
+--example: SELECT * INTO dept2 FROM dept
 
-
---SELECT..INTO: quickest way to create a copy of a table:
-SELECT *, commission AS [Commision_Amount] INTO ##Emp2 FROM emp
-select * from ##Emp2
+use Employees
+drop table if exists "##Emp2"   --Drop if exists.
+SELECT *, commission AS [Commision_Amount] INTO ##Emp2 from emp  --Creating a copy of table with additional column.
 --Check if table created as expected:
+select * from ##Emp2
 use tempdb
 exec sp_help '##Emp2'
 
-use Employee
+
 /* Create a Cursor that inserts values into the new column [Commision_Amount] as created above in the "##Emp2" table: 
 	1) For employees with non-zero/not-null values in the "Commission%" column, insert: [Salary]*[Commission%].
 	2) For employees who work in "Tech" department, insert: £10 (flat/fixed value).
 	3) For other employees (who are neither in "Tech" department nor have any "Commission%"), insert: 0.
 */
+use Employee
 DECLARE @eid INT
 DECLARE @ename VARCHAR(99)
 DECLARE @dname VARCHAR(99)
@@ -501,13 +645,28 @@ BEGIN
 END
 CLOSE cur_Emps_Salary_Comm  
 DEALLOCATE cur_Emps_Salary_Comm
-
 ----------------------------
 
 
+-----------------
+--Error Handling:
+-----------------
+---------------------------
+
+
+GO
 --Write a simple Try..Catch block to handle error gracefully:
 BEGIN TRY
-    PRINT 1/0;  -- Generating divide-by-zero error.
+	RAISERROR (50005,1,1) WITH LOG
+END TRY
+BEGIN CATCH
+	SELECT ERROR_MESSAGE(), ERROR_NUMBER ()
+END CATCH
+
+--Write a Try..Catch block to handle error gracefully, forcefully generate an error, print the trapped error's details (in Catch block):
+--e.g. can use divide by zero error:
+BEGIN TRY
+    SELECT 1/0;  -- Generating divide-by-zero error.
 END TRY
 BEGIN CATCH
     SELECT
@@ -518,6 +677,145 @@ BEGIN CATCH
         ,ERROR_LINE() AS ErrorLine			--=> 3
         ,ERROR_MESSAGE() AS ErrorMessage;		--=> Divide by zero error encountered.
 END CATCH;
+
+--SET operations Queries:
+
+/*Note: SQL provides 3 set operations:
+1) UNION: Combine all results from two query blocks into a single result, omitting any duplicates.
+2) INTERSECT: Combine only those rows which the results of two query blocks have in common, omitting any duplicates.
+3) EXCEPT: For two query blocks A and B, return all results from A which are not also present in B, omitting any duplicates.
+*/
+
+--List employ in Sales and/or Managers:
+select * from emp
+where jobtitle LIKE '%Manager%'
+UNION
+select * from emp
+where jobtitle LIKE '%Sales%'
+order by ename
+
+--UNION vs UNION ALL:
+--List employ in Sales and/or Managers:
+select * from emp
+where jobtitle LIKE '%Manager%'
+UNION ALL
+select * from emp
+where jobtitle LIKE '%Sales%'
+order by ename
+
+-------------------------
+
+
+--Create a table type variable called @emp with just the ename and also includes a new (calculated) column to show Commissions on Salaries,
+-- if no commission is paid then return 0.0 for that employee:
+DECLARE @emp table (
+	ename VARCHAR(256),
+	comm MONEY
+)
+BEGIN
+	INSERT INTO @emp
+	SELECT 
+		ename,
+		ISNULL(commission * salary, 0.0)
+		/*
+		CASE 
+			WHEN commission IS NULL THEN 0.0
+			ELSE commission * salary
+		END AS [Comm]
+		*/
+	FROM emp
+
+	SELECT * FROM @emp
+END
+
+
+--Create a table value function that accepts "deptid" and returns ename and deptid for the given deptid:
+--Method-1:
+CREATE FUNCTION EmpByDeptId(@did int)
+RETURNS @empdid TABLE(ename VARCHAR(50), did INT)
+AS
+BEGIN
+	INSERT INTO @empdid SELECT ename, did FROM emp WHERE did = @did
+	RETURN
+END
+--Call:
+SELECT * FROM EmpByDeptId(30)
+
+--Method-2:
+CREATE FUNCTION EmpByDeptId2(@did int)
+RETURNS TABLE
+AS
+	RETURN
+	SELECT ename, did FROM emp WHERE did = @did
+
+--Call:
+SELECT * FROM EmpByDeptId2(20)
+
+
+--Round() function:
+print ROUND(748.58, 0)	-->750.00
+print ROUND(748.58, 1)	-->750.00
+print ROUND(748.58, -1)	-->750.00
+
+--Format() function:
+select FORMAT(CAST('2018-05-01 14:00' AS datetime2), N'yyyy-MM-dd hh:mm tt') -- returns 02:00 PM
+select FORMAT(CAST('2018-06-01 14:00' AS datetime2), N'yyyy-MMM-dd HH:mm') -- returns 02:00 PM
+
+--Correlated query (both the outer & sub-quries interact with each other):
+SELECT ename, salary, did
+FROM emp o
+WHERE salary >
+                (SELECT AVG(salary)
+                 FROM emp i
+                 WHERE i.did = o.did 
+				 group by i.did)
+
+
+
+
+--ERROR LOGGING into custom table & accessing variable in Dynamic-SQL:
+-- Create "ErrorLog" table:
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ErrorLog')
+	CREATE TABLE ErrorLog (
+		ErrorID INT PRIMARY KEY IDENTITY(1,1),
+		ErrorTime DATETIME DEFAULT GETDATE(),
+		ErrorMessage NVARCHAR(4000),
+		ErrorSeverity INT,
+		ErrorState INT
+	);
+-- Declare all variables at the beginning
+DECLARE @Counter INT = 1;
+DECLARE @MaxCounter INT = 5; -- Limit of updates
+DECLARE @DepartmentName NVARCHAR(50); -- Department name variable
+DECLARE @SQL NVARCHAR(MAX); -- SQL command string
+DECLARE @TableName NVARCHAR(50) = 'emp'; -- Table name
+-- Loop through the Sales departments and give them increment in salary by £1000.
+WHILE @Counter <= @MaxCounter
+BEGIN
+    BEGIN TRY
+        -- Set the department name (this should match an actual department name in your table)
+        SET @DepartmentName = 'Sales'; -- Use a proper department name here
+        
+        -- Build the dynamic SQL command
+        SET @SQL = N'UPDATE ' + @TableName + N' SET Salary = Salary + 1000 WHERE JobTitle LIKE ''' + @DepartmentName + ''%'';
+        
+        -- Execute the dynamic SQL command
+        EXEC sp_executesql @SQL;
+        
+        -- Increment the counter
+        SET @Counter = @Counter + 1;
+    END TRY
+    BEGIN CATCH
+        -- Log the error in the ErrorLog table
+        INSERT INTO ErrorLog(ErrorMessage, ErrorSeverity, ErrorState)
+        VALUES(ERROR_MESSAGE(), ERROR_SEVERITY(), ERROR_STATE());
+        
+        -- Increment the counter to continue with the loop
+        SET @Counter = @Counter + 1;
+    END CATCH
+END
+
+
 
 
 -- Create another temporary table called "##Emp3" by copying of "Emp" table with an 
@@ -592,3 +890,4 @@ print (DATEPART(Month, getdate()))
 PRINT MONTH(getdate())
 
 
+-------------------------X-------------------------
